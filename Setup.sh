@@ -340,12 +340,12 @@ HASH_TYPES = {
     },
     "sha1": {
         "pattern": re.compile(r"\b[a-fA-F0-9]{40}\b"),
-        "api_url": "https://www.nitrxgen.net/md5db/{hash}",
+        "api_url": None,  # no free plaintext API; collect only
         "label": "SHA1",
     },
     "sha256": {
         "pattern": re.compile(r"\b[a-fA-F0-9]{64}\b"),
-        "api_url": "https://www.nitrxgen.net/md5db/{hash}",
+        "api_url": None,  # no free plaintext API; collect only
         "label": "SHA256",
     },
 }
@@ -390,7 +390,10 @@ def check_hash_online(hash_value, hash_type):
     config = HASH_TYPES.get(hash_type)
     if not config:
         return None
-    url = config["api_url"].format(hash=hash_value)
+    api_url = config["api_url"]
+    if api_url is None:
+        return None  # no API available for this hash type
+    url = api_url.format(hash=hash_value)
     try:
         response = requests.get(url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
@@ -461,6 +464,15 @@ def main():
     cracked = 0
     for (h, ht), src in hashes.items():
         label = HASH_TYPES[ht]["label"]
+        config = HASH_TYPES[ht]
+        if config["api_url"] is None:
+            log.info("COLLECTED [%s] %s  (from %s) -- no online lookup available", label, h, os.path.basename(src))
+            os.makedirs(os.path.dirname(args.cracked_log), exist_ok=True)
+            with open(args.cracked_log, "a") as log_file:
+                log_file.write(
+                    f"[{label}] {h}:??? (source: {os.path.basename(src)})\n"
+                )
+            continue
         plaintext = check_hash_online(h, ht)
         if plaintext:
             cracked += 1
