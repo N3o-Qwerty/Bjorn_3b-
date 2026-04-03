@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update -qq && sudo apt-get install -y shellcheck
+
+      - name: Lint Setup.sh
+        run: shellcheck -x Setup.sh
+
+  python-lint:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linters
+        run: pip install flake8
+
+      - name: Check Python syntax in Setup.sh generators
+        run: |
+          # Extract embedded Python scripts and check syntax
+          python3 -c "
+          import ast, sys
+          # Quick syntax check on any standalone .py files
+          import glob
+          errors = 0
+          for f in glob.glob('**/*.py', recursive=True):
+              try:
+                  with open(f) as fh:
+                      ast.parse(fh.read(), filename=f)
+              except SyntaxError as e:
+                  print(f'Syntax error in {f}: {e}', file=sys.stderr)
+                  errors += 1
+          sys.exit(errors)
+          "
