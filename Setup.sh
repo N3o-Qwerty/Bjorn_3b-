@@ -634,36 +634,47 @@ generate_apply_config() {
 # Merges config_patch.json into Bjorn's shared_data.json configuration.
 set -euo pipefail
 
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log_info()  { echo -e "${GREEN}[+]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+log_step()  { echo -e "${CYAN}[*]${NC} $*"; }
+log_error() { echo -e "${RED}[-]${NC} $*" >&2; }
+
 BJORN_HOME="/home/bjorn/bjorn"
 CONFIG_FILE="${BJORN_HOME}/data/shared_data.json"
 PATCH_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config_patch.json"
 
 if [[ ! -f "${PATCH_FILE}" ]]; then
-    echo "[-] config_patch.json not found at ${PATCH_FILE}"
+    log_error "config_patch.json not found at ${PATCH_FILE}"
     exit 1
 fi
 
 if ! command -v jq &>/dev/null; then
-    echo "[*] Installing jq..."
+    log_step "Installing jq..."
     sudo apt-get update -qq
     sudo apt-get install -y jq
 fi
 
 if [[ -f "${CONFIG_FILE}" ]]; then
     cp "${CONFIG_FILE}" "${CONFIG_FILE}.bak"
-    echo "[*] Backed up existing config to ${CONFIG_FILE}.bak"
+    log_step "Backed up existing config to ${CONFIG_FILE}.bak"
 
-    echo "[*] Merging config_patch.json into shared_data.json..."
+    log_step "Merging config_patch.json into shared_data.json..."
     jq -s '.[0] * .[1]' "${CONFIG_FILE}" "${PATCH_FILE}" > "${CONFIG_FILE}.tmp"
     mv "${CONFIG_FILE}.tmp" "${CONFIG_FILE}"
 else
-    echo "[!] ${CONFIG_FILE} not found -- creating from patch."
+    log_warn "${CONFIG_FILE} not found -- creating from patch."
     mkdir -p "$(dirname "${CONFIG_FILE}")"
     cp "${PATCH_FILE}" "${CONFIG_FILE}"
 fi
 
-echo "[+] Configuration applied successfully."
-echo "[*] Review: cat ${CONFIG_FILE}"
+log_info "Configuration applied successfully."
+log_step "Review: cat ${CONFIG_FILE}"
 SCRIPT
 }
 
