@@ -462,10 +462,13 @@ def main():
         return
 
     cracked = 0
+    attempted = 0
+    collected = 0
     for (h, ht), src in hashes.items():
         label = HASH_TYPES[ht]["label"]
         config = HASH_TYPES[ht]
         if config["api_url"] is None:
+            collected += 1
             log.info("COLLECTED [%s] %s  (from %s) -- no online lookup available", label, h, os.path.basename(src))
             os.makedirs(os.path.dirname(args.cracked_log), exist_ok=True)
             with open(args.cracked_log, "a") as log_file:
@@ -473,6 +476,7 @@ def main():
                     f"[{label}] {h}:??? (source: {os.path.basename(src)})\n"
                 )
             continue
+        attempted += 1
         plaintext = check_hash_online(h, ht)
         if plaintext:
             cracked += 1
@@ -486,7 +490,9 @@ def main():
             log.info("NOT FOUND  [%s] %s", label, h)
         time.sleep(REQUEST_DELAY)
 
-    log.info("Done. %d / %d hash(es) cracked.", cracked, len(hashes))
+    log.info("Done. %d / %d hash(es) cracked.", cracked, attempted)
+    if collected:
+        log.info("%d hash(es) collected only (no API available).", collected)
 
 
 if __name__ == "__main__":
@@ -757,7 +763,9 @@ def main():
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    output_dir = os.path.dirname(args.output)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     write_header = not os.path.exists(args.output)
 
@@ -924,6 +932,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m'
+
+log_info()  { echo -e "${GREEN}[+]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+log_step()  { echo -e "${CYAN}[*]${NC} $*"; }
+log_error() { echo -e "${RED}[-]${NC} $*" >&2; }
 
 OK="${GREEN}OK${NC}"
 WARN="${YELLOW}WARN${NC}"
